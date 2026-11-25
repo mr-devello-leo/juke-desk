@@ -32,6 +32,9 @@ interface UseJukeboxResult {
     currentTrackId: string | null,
     finishStatus?: "played" | "skipped"
   ) => Promise<void>;
+  playTrackNow: (trackId: string) => Promise<void>;
+  reorderQueue: (orderedTrackIds: string[]) => Promise<void>;
+  clearQueue: () => Promise<void>;
   removeTrack: (trackId: string) => Promise<void>;
   updateVolume: (nextVolume: number) => Promise<void>;
   toggleMute: () => Promise<void>;
@@ -352,6 +355,83 @@ export function useJukebox(userId: string): UseJukeboxResult {
     [fetchAll]
   );
 
+  const playTrackNow = useCallback(
+    async (trackId: string) => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+
+      await supabase
+        .from("tracks")
+        .update({ status: "skipped" })
+        .eq("status", "playing");
+
+      await supabase
+        .from("tracks")
+        .update({
+          status: "playing",
+          started_at: new Date().toISOString(),
+        })
+        .eq("id", trackId);
+
+      await fetchAll();
+    },
+    [fetchAll]
+  );
+
+  const reorderQueue = useCallback(
+    async (orderedTrackIds: string[]) => {
+      const supabase = getSupabaseClient();
+      if (!supabase || orderedTrackIds.length < 2) return;
+
+      const queuedTracks = tracks.filter((track) => track.status === "queued");
+      const timestamps = queuedTracks
+        .map((track) => Date.parse(track.created_at))
+        .filter((ms) => Number.isFinite(ms));
+
+      const baseMs =
+        timestamps.length > 0 ? Math.min(...timestamps) : Date.now();
+
+      const nextCreatedAtById = new Map<string, string>();
+      orderedTrackIds.forEach((id, index) => {
+        nextCreatedAtById.set(id, new Date(baseMs + index * 1000).toISOString());
+      });
+
+      setTracks((prev) =>
+        prev
+          .map((track) => {
+            const nextCreatedAt = nextCreatedAtById.get(track.id);
+            return nextCreatedAt
+              ? { ...track, created_at: nextCreatedAt }
+              : track;
+          })
+          .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+      );
+
+      await Promise.all(
+        orderedTrackIds.map((id) => {
+          const nextCreatedAt = nextCreatedAtById.get(id);
+          if (!nextCreatedAt) return Promise.resolve();
+          return supabase
+            .from("tracks")
+            .update({ created_at: nextCreatedAt })
+            .eq("id", id)
+            .eq("status", "queued");
+        })
+      );
+
+      await fetchAll();
+    },
+    [tracks, fetchAll]
+  );
+
+  const clearQueue = useCallback(async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    await supabase.from("tracks").delete().eq("status", "queued");
+    await fetchAll();
+  }, [fetchAll]);
+
   const updateVolume = useCallback(async (nextVolume: number) => {
     const clamped = Math.max(0, Math.min(100, Math.round(nextVolume)));
     const nextMuted = clamped === 0;
@@ -397,6 +477,9 @@ export function useJukebox(userId: string): UseJukeboxResult {
     addTrack,
     toggleVote,
     advanceToNextTrack,
+    playTrackNow,
+    reorderQueue,
+    clearQueue,
     removeTrack,
     updateVolume,
     toggleMute,

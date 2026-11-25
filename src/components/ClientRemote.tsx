@@ -4,10 +4,16 @@ import { useState, useSyncExternalStore, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpToLine,
+  Crown,
   Disc3,
+  FastForward,
   Heart,
   ListMusic,
   Loader2,
+  Play,
   Plus,
   Radio,
   SkipForward,
@@ -42,7 +48,11 @@ function useClientIdentity() {
   return { userId, initialNickname };
 }
 
-export function ClientRemote() {
+interface ClientRemoteProps {
+  isMaster?: boolean;
+}
+
+export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
   const { userId, initialNickname } = useClientIdentity();
   const [nicknameOverride, setNicknameOverride] = useState<string | null>(null);
   const [isEditingNickname, setIsEditingNickname] = useState(false);
@@ -52,6 +62,9 @@ export function ClientRemote() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [confirmClearQueue, setConfirmClearQueue] = useState(false);
 
   const nickname = nicknameOverride ?? initialNickname;
 
@@ -67,6 +80,10 @@ export function ClientRemote() {
     isConfigured,
     addTrack,
     toggleVote,
+    advanceToNextTrack,
+    playTrackNow,
+    reorderQueue,
+    clearQueue,
     removeTrack,
     updateVolume,
     toggleMute,
@@ -110,6 +127,52 @@ export function ClientRemote() {
     }
   };
 
+  const runMasterAction = async (
+    actionKey: string,
+    action: () => Promise<void>
+  ) => {
+    if (pendingActionId) return;
+    setPendingActionId(actionKey);
+    try {
+      await action();
+    } finally {
+      setPendingActionId(null);
+    }
+  };
+
+  const handleMoveTrack = (
+    index: number,
+    direction: "top" | "up" | "down"
+  ) => {
+    const ids = queue.map((track) => track.id);
+    if (index < 0 || index >= ids.length) return;
+
+    let targetIndex = index;
+    if (direction === "top") {
+      targetIndex = 0;
+    } else if (direction === "up") {
+      targetIndex = Math.max(0, index - 1);
+    } else if (direction === "down") {
+      targetIndex = Math.min(ids.length - 1, index + 1);
+    }
+
+    if (targetIndex === index) return;
+
+    const [movedId] = ids.splice(index, 1);
+    ids.splice(targetIndex, 0, movedId);
+
+    void runMasterAction(`move-${movedId}`, () => reorderQueue(ids));
+  };
+
+  const handleClearQueue = () => {
+    if (!confirmClearQueue) {
+      setConfirmClearQueue(true);
+      return;
+    }
+    setConfirmClearQueue(false);
+    void runMasterAction("clear-queue", () => clearQueue());
+  };
+
   const skipProgress = nowPlaying
     ? Math.min(100, Math.round((nowPlaying.skipCount / skipThreshold) * 100))
     : 0;
@@ -119,15 +182,34 @@ export function ClientRemote() {
       {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30">
-            <Disc3 className="h-6 w-6" />
+          <div
+            className={`flex h-11 w-11 items-center justify-center rounded-2xl ring-1 ${
+              isMaster
+                ? "bg-amber-500/20 text-amber-300 ring-amber-500/40"
+                : "bg-indigo-500/20 text-indigo-400 ring-indigo-500/30"
+            }`}
+          >
+            {isMaster ? (
+              <Crown className="h-6 w-6" />
+            ) : (
+              <Disc3 className="h-6 w-6" />
+            )}
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
-              JukeDesk
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight text-white">
+                JukeDesk
+              </h1>
+              {isMaster && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 ring-1 ring-amber-500/40">
+                  Master
+                </span>
+              )}
+            </div>
             <p className="text-xs text-zinc-400">
-              사무실 공용 BGM 주크박스 리모컨
+              {isMaster
+                ? "마스터 리모컨 · 즉시 스킵 및 대기열 순서 제어"
+                : "사무실 공용 BGM 주크박스 리모컨"}
             </p>
           </div>
         </div>
@@ -269,6 +351,26 @@ export function ClientRemote() {
                     <SkipForward className="h-4 w-4" />
                     스킵 투표 ({nowPlaying.skipCount}/{skipThreshold})
                   </button>
+
+                  {isMaster && (
+                    <button
+                      type="button"
+                      disabled={!isConfigured || pendingActionId !== null}
+                      onClick={() =>
+                        void runMasterAction("force-skip", () =>
+                          advanceToNextTrack(nowPlaying.id, "skipped")
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-zinc-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {pendingActionId === "force-skip" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FastForward className="h-4 w-4" />
+                      )}
+                      {queue.length > 0 ? "다음 곡 바로 재생" : "즉시 스킵"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -388,11 +490,38 @@ export function ClientRemote() {
 
       {/* Up Next Queue */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <ListMusic className="h-4 w-4 text-indigo-400" />
             대기열 ({queue.length})
           </h2>
+
+          {isMaster && queue.length > 0 && (
+            <div className="flex items-center gap-2">
+              {confirmClearQueue && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearQueue(false)}
+                  className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 transition hover:bg-zinc-800"
+                >
+                  취소
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={pendingActionId !== null}
+                onClick={handleClearQueue}
+                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                  confirmClearQueue
+                    ? "bg-red-500 text-white hover:bg-red-400"
+                    : "border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-red-500/40 hover:text-red-300"
+                }`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {confirmClearQueue ? "정말 모두 비우기" : "대기열 비우기"}
+              </button>
+            </div>
+          )}
         </div>
 
         {queue.length === 0 ? (
@@ -401,64 +530,129 @@ export function ClientRemote() {
           </div>
         ) : (
           <ul className="space-y-2">
-            {queue.map((track, index) => (
-              <li
-                key={track.id}
-                className="flex items-center gap-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-3"
-              >
-                <span className="w-5 text-center text-xs font-semibold text-zinc-500">
-                  {index + 1}
-                </span>
+            {queue.map((track, index) => {
+              const isFirst = index === 0;
+              const isLast = index === queue.length - 1;
+              const isBusy = pendingActionId !== null;
 
-                <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
-                  <Image
-                    src={track.thumbnail_url}
-                    alt={track.title}
-                    fill
-                    sizes="80px"
-                    className="object-cover"
-                  />
-                </div>
+              return (
+                <li
+                  key={track.id}
+                  className="flex flex-col gap-2.5 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-3 sm:flex-row sm:items-center sm:gap-3"
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="w-5 shrink-0 text-center text-xs font-semibold text-zinc-500">
+                      {index + 1}
+                    </span>
 
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-zinc-100">
-                    {track.title}
-                  </p>
-                  <p className="truncate text-xs text-zinc-500">
-                    신청: {track.requested_by}
-                    {track.author_name ? ` · ${track.author_name}` : ""}
-                  </p>
-                </div>
+                    <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
+                      <Image
+                        src={track.thumbnail_url}
+                        alt={track.title}
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                      />
+                    </div>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => void toggleVote(track.id, "like")}
-                    className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs transition ${
-                      track.likedByMe
-                        ? "bg-rose-500/20 text-rose-300"
-                        : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-                    }`}
-                  >
-                    <Heart
-                      className={`h-3.5 w-3.5 ${
-                        track.likedByMe ? "fill-rose-400 text-rose-400" : ""
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-zinc-100">
+                        {track.title}
+                      </p>
+                      <p className="truncate text-xs text-zinc-500">
+                        신청: {track.requested_by}
+                        {track.author_name ? ` · ${track.author_name}` : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-1 border-t border-zinc-800/70 pt-2 sm:border-t-0 sm:pt-0">
+                    {isMaster && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() =>
+                            void runMasterAction(`play-${track.id}`, () =>
+                              playTrackNow(track.id)
+                            )
+                          }
+                          title="이 곡 바로 재생"
+                          className="inline-flex items-center gap-1 rounded-lg bg-amber-500/20 px-2.5 py-1.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30 transition hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {pendingActionId === `play-${track.id}` ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Play className="h-3.5 w-3.5 fill-amber-300" />
+                          )}
+                          바로 재생
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isFirst || isBusy}
+                          onClick={() => handleMoveTrack(index, "top")}
+                          title="맨 위로 올리기"
+                          aria-label="맨 위로 올리기"
+                          className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          <ArrowUpToLine className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isFirst || isBusy}
+                          onClick={() => handleMoveTrack(index, "up")}
+                          title="위로 이동"
+                          aria-label="위로 이동"
+                          className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isLast || isBusy}
+                          onClick={() => handleMoveTrack(index, "down")}
+                          title="아래로 이동"
+                          aria-label="아래로 이동"
+                          className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => void toggleVote(track.id, "like")}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs transition ${
+                        track.likedByMe
+                          ? "bg-rose-500/20 text-rose-300"
+                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
                       }`}
-                    />
-                    {track.likeCount}
-                  </button>
+                    >
+                      <Heart
+                        className={`h-3.5 w-3.5 ${
+                          track.likedByMe ? "fill-rose-400 text-rose-400" : ""
+                        }`}
+                      />
+                      {track.likeCount}
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => void removeTrack(track.id)}
-                    title="대기열에서 삭제"
-                    className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </li>
-            ))}
+                    <button
+                      type="button"
+                      onClick={() => void removeTrack(track.id)}
+                      title="대기열에서 삭제"
+                      aria-label="대기열에서 삭제"
+                      className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
