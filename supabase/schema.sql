@@ -31,11 +31,23 @@ create table if not exists public.votes (
 create index if not exists votes_track_id_idx
   on public.votes (track_id);
 
--- 3. RLS(Row Level Security) 설정
+-- 3. 플레이어 공용 설정 테이블 (원격 볼륨 조절 / 음소거)
+create table if not exists public.player_settings (
+  id integer primary key default 1 check (id = 1),
+  volume integer not null default 70 check (volume >= 0 and volume <= 100),
+  is_muted boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.player_settings (id, volume, is_muted)
+values (1, 70, false)
+on conflict (id) do nothing;
+
+-- 4. RLS(Row Level Security) 설정
 -- 사내 MVP용으로 익명 키(anon) 접근을 허용합니다.
--- 추후 사내 Google/Slack OAuth를 붙일 때 auth.role() = 'authenticated' 조건으로 변경하세요.
 alter table public.tracks enable row level security;
 alter table public.votes enable row level security;
+alter table public.player_settings enable row level security;
 
 drop policy if exists "Allow public read tracks" on public.tracks;
 create policy "Allow public read tracks"
@@ -65,7 +77,19 @@ drop policy if exists "Allow public delete votes" on public.votes;
 create policy "Allow public delete votes"
   on public.votes for delete using (true);
 
--- 4. Supabase Realtime 활성화 (Host와 Client 간 즉시 동기화)
+drop policy if exists "Allow public read player_settings" on public.player_settings;
+create policy "Allow public read player_settings"
+  on public.player_settings for select using (true);
+
+drop policy if exists "Allow public insert player_settings" on public.player_settings;
+create policy "Allow public insert player_settings"
+  on public.player_settings for insert with check (true);
+
+drop policy if exists "Allow public update player_settings" on public.player_settings;
+create policy "Allow public update player_settings"
+  on public.player_settings for update using (true) with check (true);
+
+-- 5. Supabase Realtime 활성화 (Host와 Client 간 즉시 동기화)
 do $$
 begin
   if not exists (
@@ -86,5 +110,15 @@ begin
       and tablename = 'votes'
   ) then
     alter publication supabase_realtime add table public.votes;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'player_settings'
+  ) then
+    alter publication supabase_realtime add table public.player_settings;
   end if;
 end $$;

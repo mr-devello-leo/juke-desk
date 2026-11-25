@@ -35,3 +35,10 @@ export interface YoutubeMetadata {
   authorName: string;
   thumbnailUrl: string;
 }
+
+export interface PlayerSettings {
+  id: number;
+  volume: number;
+  is_muted: boolean;
+  updated_at: string;
+}

@@ -8,6 +8,7 @@ import {
 } from "@/lib/supabase";
 import { extractYoutubeVideoId } from "@/lib/youtube";
 import type {
+  PlayerSettings,
   Track,
   TrackWithVotes,
   Vote,
@@ -19,6 +20,8 @@ interface UseJukeboxResult {
   nowPlaying: TrackWithVotes | null;
   queue: TrackWithVotes[];
   history: TrackWithVotes[];
+  volume: number;
+  isMuted: boolean;
   isLoading: boolean;
   error: string | null;
   skipThreshold: number;
@@ -30,12 +33,16 @@ interface UseJukeboxResult {
     finishStatus?: "played" | "skipped"
   ) => Promise<void>;
   removeTrack: (trackId: string) => Promise<void>;
+  updateVolume: (nextVolume: number) => Promise<void>;
+  toggleMute: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 export function useJukebox(userId: string): UseJukeboxResult {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
+  const [volume, setVolumeState] = useState<number>(70);
+  const [isMuted, setIsMutedState] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,13 +53,14 @@ export function useJukebox(userId: string): UseJukeboxResult {
       return;
     }
 
-    const [tracksResult, votesResult] = await Promise.all([
+    const [tracksResult, votesResult, settingsResult] = await Promise.all([
       supabase
         .from("tracks")
         .select("*")
         .order("created_at", { ascending: true })
         .limit(100),
       supabase.from("votes").select("*"),
+      supabase.from("player_settings").select("*").eq("id", 1).maybeSingle(),
     ]);
 
     if (tracksResult.error) {
@@ -69,6 +77,13 @@ export function useJukebox(userId: string): UseJukeboxResult {
 
     setTracks((tracksResult.data ?? []) as Track[]);
     setVotes((votesResult.data ?? []) as Vote[]);
+
+    if (!settingsResult.error && settingsResult.data) {
+      const settings = settingsResult.data as PlayerSettings;
+      setVolumeState(settings.volume);
+      setIsMutedState(settings.is_muted);
+    }
+
     setError(null);
     setIsLoading(false);
   }, []);
@@ -102,6 +117,19 @@ export function useJukebox(userId: string): UseJukeboxResult {
         { event: "*", schema: "public", table: "votes" },
         () => {
           void fetchAll();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "player_settings" },
+        (payload) => {
+          const next = payload.new as Partial<PlayerSettings> | undefined;
+          if (typeof next?.volume === "number") {
+            setVolumeState(next.volume);
+          }
+          if (typeof next?.is_muted === "boolean") {
+            setIsMutedState(next.is_muted);
+          }
         }
       )
       .subscribe();
@@ -324,10 +352,44 @@ export function useJukebox(userId: string): UseJukeboxResult {
     [fetchAll]
   );
 
+  const updateVolume = useCallback(async (nextVolume: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(nextVolume)));
+    const nextMuted = clamped === 0;
+    setVolumeState(clamped);
+    setIsMutedState(nextMuted);
+
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    await supabase.from("player_settings").upsert({
+      id: 1,
+      volume: clamped,
+      is_muted: nextMuted,
+      updated_at: new Date().toISOString(),
+    });
+  }, []);
+
+  const toggleMute = useCallback(async () => {
+    const nextMuted = !isMuted;
+    setIsMutedState(nextMuted);
+
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    await supabase.from("player_settings").upsert({
+      id: 1,
+      volume,
+      is_muted: nextMuted,
+      updated_at: new Date().toISOString(),
+    });
+  }, [isMuted, volume]);
+
   return {
     nowPlaying,
     queue,
     history,
+    volume,
+    isMuted,
     isLoading,
     error,
     skipThreshold: SKIP_THRESHOLD,
@@ -336,6 +398,8 @@ export function useJukebox(userId: string): UseJukeboxResult {
     toggleVote,
     advanceToNextTrack,
     removeTrack,
+    updateVolume,
+    toggleMute,
     refresh: fetchAll,
   };
 }

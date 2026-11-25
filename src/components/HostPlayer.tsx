@@ -70,6 +70,8 @@ export function HostPlayer() {
   const {
     nowPlaying,
     queue,
+    volume,
+    isMuted,
     skipThreshold,
     isConfigured,
     advanceToNextTrack,
@@ -148,8 +150,30 @@ export function HostPlayer() {
     void requestWakeLock();
   };
 
+  const applyVolumeToPlayer = useCallback(
+    (target: YouTubePlayer | null) => {
+      if (!target) return;
+      try {
+        if (isMuted || volume === 0) {
+          target.mute();
+        } else {
+          target.unMute();
+          target.setVolume(volume);
+        }
+      } catch {
+        // 플레이어가 아직 준비되지 않았거나 언마운트 중일 때는 무시
+      }
+    },
+    [isMuted, volume]
+  );
+
+  useEffect(() => {
+    applyVolumeToPlayer(playerRef.current);
+  }, [applyVolumeToPlayer]);
+
   const handlePlayerReady: YouTubeProps["onReady"] = (event: YouTubeEvent) => {
     playerRef.current = event.target;
+    applyVolumeToPlayer(event.target);
     if (isUnlocked) {
       event.target.playVideo();
     }

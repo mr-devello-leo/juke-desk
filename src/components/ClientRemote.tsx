@@ -13,6 +13,8 @@ import {
   SkipForward,
   Trash2,
   User,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { SetupGuideBanner } from "@/components/SetupGuideBanner";
 import { useJukebox } from "@/hooks/useJukebox";
@@ -57,6 +59,8 @@ export function ClientRemote() {
     nowPlaying,
     queue,
     history,
+    volume,
+    isMuted,
     isLoading,
     error,
     skipThreshold,
@@ -64,6 +68,8 @@ export function ClientRemote() {
     addTrack,
     toggleVote,
     removeTrack,
+    updateVolume,
+    toggleMute,
   } = useJukebox(userId);
 
   const handleSaveNickname = (event: FormEvent) => {
@@ -293,6 +299,51 @@ export function ClientRemote() {
             </p>
           </div>
         )}
+      </section>
+
+      {/* Remote Volume Control */}
+      <section className="rounded-3xl border border-zinc-800 bg-zinc-900/50 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={!isConfigured}
+            onClick={() => void toggleMute()}
+            aria-label={isMuted ? "음소거 해제" : "음소거"}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${
+              isMuted || volume === 0
+                ? "bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40"
+                : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+            }`}
+          >
+            {isMuted || volume === 0 ? (
+              <VolumeX className="h-4 w-4" />
+            ) : (
+              <Volume2 className="h-4 w-4" />
+            )}
+          </button>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-zinc-300">사무실 볼륨</span>
+              <span className="tabular-nums text-zinc-400">
+                {isMuted ? "음소거" : `${volume}%`}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={isMuted ? 0 : volume}
+              disabled={!isConfigured}
+              onChange={(event) =>
+                void updateVolume(Number.parseInt(event.target.value, 10))
+              }
+              aria-label="사무실 스피커 볼륨"
+              className="h-1.5 w-full cursor-pointer accent-indigo-500 disabled:opacity-50"
+            />
+          </div>
+        </div>
       </section>
 
       {/* Add Track Form */}
