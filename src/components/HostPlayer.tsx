@@ -272,51 +272,61 @@ export function HostPlayer() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-8">
       {/* Top Bar */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30">
-            <Volume2 className="h-5 w-5" />
+      <header className="flex flex-col gap-3 border-b border-zinc-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30">
+              <Volume2 className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-bold text-white sm:text-lg">
+                JukeDesk Host Player
+              </h1>
+              <p className="truncate text-xs text-zinc-400">
+                블루투스 스피커 연결 기기 전용 재생 화면
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-white">
-              JukeDesk Host Player
-            </h1>
-            <p className="text-xs text-zinc-400">
-              블루투스 스피커 연결 기기 전용 재생 화면
-            </p>
-          </div>
+
+          <Link
+            href="/"
+            className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-zinc-200 transition hover:bg-zinc-800 sm:hidden"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            리모컨
+          </Link>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setIsDefaultBgmEnabled((prev) => !prev)}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
               isDefaultBgmEnabled
                 ? "bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/30 hover:bg-indigo-500/25"
                 : "bg-zinc-900 text-zinc-400 ring-1 ring-zinc-800 hover:bg-zinc-800"
             }`}
           >
-            <Music2 className="h-3.5 w-3.5" />
+            <Music2 className="h-3.5 w-3.5 shrink-0" />
             추천 BGM {isDefaultBgmEnabled ? "ON" : "OFF"}
           </button>
 
           <span
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium ${
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
               wakeLockActive
                 ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30"
                 : "bg-zinc-900 text-zinc-400 ring-1 ring-zinc-800"
             }`}
           >
-            <Smartphone className="h-3.5 w-3.5" />
+            <Smartphone className="h-3.5 w-3.5 shrink-0" />
             {wakeLockActive ? "화면 꺼짐 방지 ON" : "화면 꺼짐 방지 대기"}
           </span>
 
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-800"
+            className="hidden items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-zinc-200 transition hover:bg-zinc-800 sm:inline-flex"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             리모컨으로
@@ -329,25 +339,24 @@ export function HostPlayer() {
       {/* Player Stage */}
       <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950">
         {!isUnlocked ? (
-          <div className="flex aspect-video flex-col items-center justify-center gap-4 p-6 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/40">
-              <Play className="ml-1 h-8 w-8" />
+          <div className="flex min-h-[270px] flex-col items-center justify-center gap-4 px-5 py-8 text-center sm:aspect-video sm:min-h-0 sm:p-6">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/40 sm:h-16 sm:w-16">
+              <Play className="ml-1 h-7 w-7 sm:h-8 sm:w-8" />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-bold text-white">
+            <div className="space-y-1.5">
+              <h2 className="text-lg font-bold break-keep text-white sm:text-xl">
                 주크박스 재생을 시작할까요?
               </h2>
-              <p className="max-w-md text-xs text-zinc-400">
-                브라우저 자동재생 정책을 해제하고 화면 꺼짐 방지(Wake Lock)를
-                켜기 위해 처음 한 번만 눌러주세요. 대기열이 비어 있으면 현재
-                시즌·시간대에 맞는 추천 BGM({defaultTrack.label})이 자동
+              <p className="mx-auto max-w-md text-xs leading-relaxed break-keep text-zinc-400">
+                자동재생과 화면 꺼짐 방지를 켜기 위해 처음 한 번만 눌러주세요.
+                대기열이 비어 있으면 추천 BGM({defaultTrack.label})이 바로
                 재생됩니다.
               </p>
             </div>
             <button
               type="button"
               onClick={handleUnlockAndStart}
-              className="mt-2 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500"
+              className="mt-1 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-indigo-500"
             >
               <Play className="h-4 w-4" />
               주크박스 시작하기
@@ -380,13 +389,13 @@ export function HostPlayer() {
             />
           </div>
         ) : (
-          <div className="flex aspect-video flex-col items-center justify-center gap-3 p-6 text-center">
-            <Disc3 className="h-12 w-12 text-zinc-700" />
-            <p className="text-base font-medium text-zinc-300">
+          <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 px-5 py-8 text-center sm:aspect-video sm:min-h-0 sm:p-6">
+            <Disc3 className="h-11 w-11 text-zinc-700 sm:h-12 sm:w-12" />
+            <p className="text-sm font-medium break-keep text-zinc-300 sm:text-base">
               대기열이 비어 있습니다 (추천 BGM OFF)
             </p>
-            <p className="text-xs text-zinc-500">
-              직원들이 리모컨(`/`)에서 유튜브 링크를 신청하면 자동으로 재생이
+            <p className="max-w-xs text-xs leading-relaxed break-keep text-zinc-500">
+              직원들이 리모컨에서 유튜브 링크를 신청하면 자동으로 재생이
               시작됩니다.
             </p>
           </div>
@@ -394,29 +403,29 @@ export function HostPlayer() {
       </section>
 
       {playerNotice && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed break-keep text-amber-200 sm:text-sm">
           {playerNotice}
         </div>
       )}
 
       {/* Now Playing Info + Host Controls */}
-      <section className="space-y-4 rounded-3xl border border-zinc-800 bg-zinc-900/60 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+      <section className="space-y-4 rounded-3xl border border-zinc-800 bg-zinc-900/60 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 {nowPlaying ? "Now Playing" : "Default BGM"}
               </p>
               {isPlayingDefault && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
-                  <Sparkles className="h-3 w-3" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-indigo-300">
+                  <Sparkles className="h-3 w-3 shrink-0" />
                   {bgmConfig.mode === "auto"
                     ? `자동 추천 · ${defaultTrack.label}`
                     : defaultTrack.label}
                 </span>
               )}
             </div>
-            <p className="mt-1 truncate text-base font-bold text-white">
+            <p className="line-clamp-2 text-sm font-bold leading-snug text-white sm:truncate sm:text-base">
               {nowPlaying
                 ? nowPlaying.title
                 : isDefaultBgmEnabled
@@ -424,26 +433,26 @@ export function HostPlayer() {
                   : "재생 대기 중"}
             </p>
             {nowPlaying ? (
-              <p className="mt-0.5 text-xs text-zinc-400">
+              <p className="text-xs leading-relaxed text-zinc-400">
                 신청자: {nowPlaying.requested_by} · 좋아요{" "}
                 {nowPlaying.likeCount} · 스킵 {nowPlaying.skipCount}/
                 {skipThreshold}
               </p>
             ) : isDefaultBgmEnabled ? (
-              <p className="mt-0.5 text-xs text-zinc-400">
+              <p className="text-xs leading-relaxed break-keep text-zinc-400">
                 {defaultTrack.authorName ? `${defaultTrack.authorName} · ` : ""}
                 신청곡이 들어오면 즉시 해당 곡으로 전환됩니다
               </p>
             ) : null}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
             <button
               type="button"
               onClick={() => setIsEditingDefault((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-800"
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-zinc-200 transition hover:bg-zinc-800 sm:px-3.5"
             >
-              <Settings2 className="h-4 w-4" />
+              <Settings2 className="h-4 w-4 shrink-0" />
               직접 링크 지정
             </button>
 
@@ -453,75 +462,75 @@ export function HostPlayer() {
               onClick={() =>
                 nowPlaying && void advanceToNextTrack(nowPlaying.id, "skipped")
               }
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-zinc-800 px-4 py-2.5 text-xs font-semibold text-zinc-100 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-zinc-800 px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-zinc-100 transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4"
             >
-              <SkipForward className="h-4 w-4" />
-              호스트 강제 스킵
+              <SkipForward className="h-4 w-4 shrink-0" />
+              강제 스킵
             </button>
           </div>
         </div>
 
         {/* Quick Theme Presets */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800/80 pt-4">
-          <span className="mr-1 text-xs font-medium text-zinc-500">
-            추천 테마:
-          </span>
-          <button
-            type="button"
-            onClick={() => handleSelectMode("auto")}
-            className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-              bgmConfig.mode === "auto"
-                ? "bg-indigo-600 text-white"
-                : "bg-zinc-800/80 text-zinc-300 hover:bg-zinc-800"
-            }`}
-          >
-            <Sparkles className="h-3 w-3" />
-            자동 추천
-          </button>
-
-          {PRESET_ORDER.map((presetId) => {
-            const preset = RECOMMENDED_PRESETS[presetId];
-            const isSelected = bgmConfig.mode === presetId;
-            return (
-              <button
-                key={presetId}
-                type="button"
-                onClick={() => handleSelectMode(presetId)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-                  isSelected
-                    ? "bg-indigo-600 text-white"
-                    : "bg-zinc-800/80 text-zinc-300 hover:bg-zinc-800"
-                }`}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-
-          {bgmConfig.customTrack && (
+        <div className="space-y-2 border-t border-zinc-800/80 pt-3.5">
+          <p className="text-xs font-medium text-zinc-400">추천 테마</p>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => handleSelectMode("custom")}
-              className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-                bgmConfig.mode === "custom"
+              onClick={() => handleSelectMode("auto")}
+              className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+                bgmConfig.mode === "auto"
                   ? "bg-indigo-600 text-white"
                   : "bg-zinc-800/80 text-zinc-300 hover:bg-zinc-800"
               }`}
             >
-              직접 설정
+              <Sparkles className="h-3 w-3 shrink-0" />
+              자동 추천
             </button>
-          )}
+
+            {PRESET_ORDER.map((presetId) => {
+              const preset = RECOMMENDED_PRESETS[presetId];
+              const isSelected = bgmConfig.mode === presetId;
+              return (
+                <button
+                  key={presetId}
+                  type="button"
+                  onClick={() => handleSelectMode(presetId)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+                    isSelected
+                      ? "bg-indigo-600 text-white"
+                      : "bg-zinc-800/80 text-zinc-300 hover:bg-zinc-800"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+
+            {bgmConfig.customTrack && (
+              <button
+                type="button"
+                onClick={() => handleSelectMode("custom")}
+                className={`rounded-xl px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+                  bgmConfig.mode === "custom"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-zinc-800/80 text-zinc-300 hover:bg-zinc-800"
+                }`}
+              >
+                직접 설정
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
       {/* Custom Default BGM Input */}
       {isEditingDefault && (
-        <section className="rounded-3xl border border-indigo-500/30 bg-indigo-500/5 p-5">
-          <div className="mb-3">
+        <section className="rounded-3xl border border-indigo-500/30 bg-indigo-500/5 p-4 sm:p-5">
+          <div className="mb-3 space-y-1">
             <h2 className="text-sm font-semibold text-white">
               커스텀 기본 BGM 링크 지정
             </h2>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs leading-relaxed break-keep text-zinc-400">
               추천 테마 대신 원하는 유튜브 라이브나 플레이리스트를 기본 곡으로
               고정할 수 있습니다.
             </p>
@@ -542,7 +551,7 @@ export function HostPlayer() {
             <button
               type="submit"
               disabled={isSavingDefault}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold whitespace-nowrap text-white transition hover:bg-indigo-500 disabled:opacity-50"
             >
               {isSavingDefault && (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -558,12 +567,12 @@ export function HostPlayer() {
       )}
 
       {/* Queue Preview */}
-      <section className="space-y-2.5">
+      <section className="space-y-2.5 pb-4">
         <h2 className="text-sm font-semibold text-zinc-300">
           다음 대기 곡 ({queue.length})
         </h2>
         {queue.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-zinc-800 py-6 text-center text-xs text-zinc-500">
+          <p className="rounded-2xl border border-dashed border-zinc-800 px-4 py-6 text-center text-xs leading-relaxed break-keep text-zinc-500">
             예정된 다음 곡이 없습니다. 현재 곡이 끝나면 추천 BGM(
             {defaultTrack.label})이 재생됩니다.
           </p>
@@ -575,14 +584,14 @@ export function HostPlayer() {
                 className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-3 text-sm"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="text-xs font-semibold text-zinc-500">
+                  <span className="shrink-0 text-xs font-semibold text-zinc-500">
                     {index + 1}
                   </span>
                   <span className="truncate font-medium text-zinc-200">
                     {track.title}
                   </span>
                 </div>
-                <span className="shrink-0 text-xs text-zinc-500">
+                <span className="shrink-0 text-xs whitespace-nowrap text-zinc-500">
                   {track.requested_by}
                 </span>
               </li>
