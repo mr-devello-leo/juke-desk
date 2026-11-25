@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore, type FormEvent } from "react";
+import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -25,8 +25,11 @@ import {
 import { SetupGuideBanner } from "@/components/SetupGuideBanner";
 import { useJukebox } from "@/hooks/useJukebox";
 import {
+  addStoredMyTrackId,
   getOrCreateUserId,
+  getStoredMyTrackIds,
   getStoredNickname,
+  removeStoredMyTrackId,
   saveStoredNickname,
 } from "@/lib/user";
 
@@ -45,7 +48,18 @@ function useClientIdentity() {
     () => ""
   );
 
-  return { userId, initialNickname };
+  const initialMyTrackIdsRaw = useSyncExternalStore(
+    emptySubscribe,
+    () => JSON.stringify(getStoredMyTrackIds()),
+    () => "[]"
+  );
+
+  const initialMyTrackIds = useMemo(
+    () => JSON.parse(initialMyTrackIdsRaw) as string[],
+    [initialMyTrackIdsRaw]
+  );
+
+  return { userId, initialNickname, initialMyTrackIds };
 }
 
 interface ClientRemoteProps {
@@ -53,8 +67,11 @@ interface ClientRemoteProps {
 }
 
 export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
-  const { userId, initialNickname } = useClientIdentity();
+  const { userId, initialNickname, initialMyTrackIds } = useClientIdentity();
   const [nicknameOverride, setNicknameOverride] = useState<string | null>(null);
+  const [myTrackIdsOverride, setMyTrackIdsOverride] = useState<string[] | null>(
+    null
+  );
   const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState("");
 
@@ -67,6 +84,10 @@ export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
   const [confirmClearQueue, setConfirmClearQueue] = useState(false);
 
   const nickname = nicknameOverride ?? initialNickname;
+  const myTrackIdSet = useMemo(
+    () => new Set(myTrackIdsOverride ?? initialMyTrackIds),
+    [myTrackIdsOverride, initialMyTrackIds]
+  );
 
   const {
     nowPlaying,
@@ -115,7 +136,8 @@ export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
 
     setIsSubmitting(true);
     try {
-      await addTrack(urlInput, nickname || "익명");
+      const insertedTrackId = await addTrack(urlInput, nickname || "익명");
+      setMyTrackIdsOverride(addStoredMyTrackId(insertedTrackId));
       setUrlInput("");
       setFormSuccess("대기열에 곡이 추가되었습니다.");
     } catch (err) {
@@ -124,6 +146,16 @@ export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRemoveTrack = async (trackId: string) => {
+    if (!isMaster && !myTrackIdSet.has(trackId)) {
+      return;
+    }
+    await removeTrack(trackId);
+    if (myTrackIdSet.has(trackId)) {
+      setMyTrackIdsOverride(removeStoredMyTrackId(trackId));
     }
   };
 
@@ -534,6 +566,8 @@ export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
               const isFirst = index === 0;
               const isLast = index === queue.length - 1;
               const isBusy = pendingActionId !== null;
+              const isMyTrack = myTrackIdSet.has(track.id);
+              const canDelete = isMaster || isMyTrack;
 
               return (
                 <li
@@ -561,6 +595,7 @@ export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
                       </p>
                       <p className="truncate text-xs text-zinc-500">
                         신청: {track.requested_by}
+                        {isMyTrack ? " (나)" : ""}
                         {track.author_name ? ` · ${track.author_name}` : ""}
                       </p>
                     </div>
@@ -640,15 +675,17 @@ export function ClientRemote({ isMaster = false }: ClientRemoteProps) {
                       {track.likeCount}
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => void removeTrack(track.id)}
-                      title="대기열에서 삭제"
-                      aria-label="대기열에서 삭제"
-                      className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => void handleRemoveTrack(track.id)}
+                        title="대기열에서 삭제"
+                        aria-label="대기열에서 삭제"
+                        className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </li>
               );

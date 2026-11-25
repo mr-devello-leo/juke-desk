@@ -26,7 +26,7 @@ interface UseJukeboxResult {
   error: string | null;
   skipThreshold: number;
   isConfigured: boolean;
-  addTrack: (url: string, requestedBy: string) => Promise<void>;
+  addTrack: (url: string, requestedBy: string) => Promise<string>;
   toggleVote: (trackId: string, type: VoteType) => Promise<void>;
   advanceToNextTrack: (
     currentTrackId: string | null,
@@ -273,21 +273,26 @@ export function useJukebox(userId: string): UseJukeboxResult {
 
       const hasPlayingTrack = (playingRows?.length ?? 0) > 0;
 
-      const { error: insertError } = await supabase.from("tracks").insert({
-        video_id: metadata.videoId,
-        title: metadata.title,
-        author_name: metadata.authorName,
-        thumbnail_url: metadata.thumbnailUrl,
-        requested_by: requestedBy.trim() || "익명",
-        status: hasPlayingTrack ? "queued" : "playing",
-        started_at: hasPlayingTrack ? null : new Date().toISOString(),
-      });
+      const { data: insertedRow, error: insertError } = await supabase
+        .from("tracks")
+        .insert({
+          video_id: metadata.videoId,
+          title: metadata.title,
+          author_name: metadata.authorName,
+          thumbnail_url: metadata.thumbnailUrl,
+          requested_by: requestedBy.trim() || "익명",
+          status: hasPlayingTrack ? "queued" : "playing",
+          started_at: hasPlayingTrack ? null : new Date().toISOString(),
+        })
+        .select("id")
+        .single();
 
       if (insertError) {
         throw new Error(`곡을 추가하지 못했습니다: ${insertError.message}`);
       }
 
       await fetchAll();
+      return (insertedRow as { id: string }).id;
     },
     [fetchAll]
   );
